@@ -1,0 +1,33 @@
+# Binary
+cfimport
+cfimport.exe
+
+# Build artifacts
+dist/
+*.deb
+*.buildinfo
+*.changes
+
+# Test coverage
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/
+
+# Config files with secrets
+.cfimport.yaml
+config.yaml
+*.env
+.env*

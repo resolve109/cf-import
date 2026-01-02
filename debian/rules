@@ -1,0 +1,27 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE = 1
+export GOPROXY = https://proxy.golang.org,direct
+
+VERSION := $(shell dpkg-parsechangelog -S Version | cut -d- -f1)
+COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+
+LDFLAGS := -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)"
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	go build $(LDFLAGS) -o cfimport ./cmd/cfimport
+
+override_dh_auto_install:
+	install -D -m 0755 cfimport $(CURDIR)/debian/cfimport/usr/bin/cfimport
+	install -D -m 0644 man/cfimport.1 $(CURDIR)/debian/cfimport/usr/share/man/man1/cfimport.1
+
+override_dh_auto_test:
+	go test ./...
+
+override_dh_auto_clean:
+	rm -f cfimport
+	go clean -cache

@@ -1,0 +1,10 @@
+cfimport (0.1.0-1) unstable; urgency=medium
+
+  * Initial release
+  * Basic CLI structure with cobra
+  * DNS import command (placeholder)
+  * Firewall import command (placeholder)
+  * Export command (placeholder)
+  * Configuration via file, environment, or flags
+
+ -- Sid Patel <sid@example.com>  Thu, 02 Jan 2026 00:00:00 +0000

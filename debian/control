@@ -1,0 +1,25 @@
+Source: cfimport
+Section: utils
+Priority: optional
+Maintainer: Sid Patel <sid@example.com>
+Build-Depends: debhelper-compat (= 13), golang-go (>= 1.21)
+Standards-Version: 4.6.0
+Homepage: https://github.com/resolve109/cf-import
+Vcs-Browser: https://github.com/resolve109/cf-import
+Vcs-Git: https://github.com/resolve109/cf-import.git
+Rules-Requires-Root: no
+
+Package: cfimport
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Cloudflare Import Tool
+ cfimport is a command-line tool for importing and exporting
+ Cloudflare configurations and resources.
+ .
+ Features:
+  - Import/export DNS records
+  - Import/export firewall rules
+  - Import/export page rules
+  - Support for multiple file formats (JSON, YAML, BIND, CSV)
+  - Dry-run mode for previewing changes
+  - Backup and restore configurations

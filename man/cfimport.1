@@ -1,0 +1,115 @@
+.TH CFIMPORT 1 "January 2026" "cfimport 0.1.0" "User Commands"
+.SH NAME
+cfimport \- Cloudflare Import Tool
+.SH SYNOPSIS
+.B cfimport
+[\fIOPTIONS\fR] \fICOMMAND\fR [\fIARGS\fR]
+.SH DESCRIPTION
+.B cfimport
+is a command-line tool for importing and exporting Cloudflare configurations and resources.
+It allows you to manage DNS records, firewall rules, and other Cloudflare settings from local files.
+.SH COMMANDS
+.TP
+.B dns
+Import DNS records into a Cloudflare zone from various file formats (JSON, YAML, BIND, CSV).
+.TP
+.B firewall
+Import firewall rules, WAF rules, rate limiting rules, or IP access rules.
+.TP
+.B export
+Export Cloudflare configurations and resources to local files for backup or migration.
+.SH GLOBAL OPTIONS
+.TP
+.BR \-\-config " " \fIFILE\fR
+Path to configuration file (default: $HOME/.cfimport.yaml)
+.TP
+.BR \-v ", " \-\-verbose
+Enable verbose output
+.TP
+.BR \-\-api\-token " " \fITOKEN\fR
+Cloudflare API token (preferred authentication method)
+.TP
+.BR \-\-api\-key " " \fIKEY\fR
+Cloudflare API key (legacy authentication)
+.TP
+.BR \-\-api\-email " " \fIEMAIL\fR
+Cloudflare account email (required with --api-key)
+.TP
+.BR \-\-version
+Show version information
+.TP
+.BR \-h ", " \-\-help
+Show help message
+.SH DNS COMMAND OPTIONS
+.TP
+.BR \-z ", " \-\-zone " " \fIZONE\fR
+Cloudflare zone name or ID (required)
+.TP
+.BR \-f ", " \-\-file " " \fIFILE\fR
+Input file path (required)
+.TP
+.BR \-\-format " " \fIFORMAT\fR
+Input file format: json, yaml, bind, csv (default: json)
+.TP
+.BR \-\-dry\-run
+Preview changes without applying them
+.TP
+.BR \-\-replace
+Replace existing records instead of merging
+.SH EXAMPLES
+Import DNS records from a JSON file:
+.PP
+.RS
+cfimport dns --zone example.com --file dns-records.json
+.RE
+.PP
+Import DNS records with dry-run:
+.PP
+.RS
+cfimport dns --zone example.com --file records.json --dry-run
+.RE
+.PP
+Export all zone configurations:
+.PP
+.RS
+cfimport export --zone example.com --output ./backup/
+.RE
+.PP
+Import firewall rules:
+.PP
+.RS
+cfimport firewall --zone example.com --file rules.yaml
+.RE
+.SH ENVIRONMENT
+.TP
+.B CF_API_TOKEN
+Cloudflare API token (preferred)
+.TP
+.B CF_API_KEY
+Cloudflare API key (legacy)
+.TP
+.B CF_API_EMAIL
+Cloudflare account email
+.SH FILES
+.TP
+.I $HOME/.cfimport.yaml
+User configuration file
+.TP
+.I /etc/cfimport/config.yaml
+System-wide configuration file
+.SH EXIT STATUS
+.TP
+.B 0
+Success
+.TP
+.B 1
+General error
+.SH AUTHOR
+Sid Patel
+.SH BUGS
+Report bugs at: https://github.com/resolve109/cf-import/issues
+.SH SEE ALSO
+.BR curl (1),
+.BR jq (1)
+.PP
+Cloudflare API documentation: https://developers.cloudflare.com/api/
