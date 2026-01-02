@@ -4,11 +4,32 @@ This document provides guidance for AI assistants working on the cfimport reposi
 
 ## Project Overview
 
-**cfimport** is a native Linux CLI tool for importing and exporting Cloudflare configurations and resources. It is designed to be installed via `sudo apt install cfimport` as a Debian package.
+**cfimport** is a native Linux CLI tool that automates AWS CloudFormation resource imports. It simplifies the process of bringing existing AWS resources under CloudFormation management.
 
 **Language:** Go 1.21+
 **License:** MIT
 **Target Platform:** Linux (Debian/Ubuntu packages)
+**Install:** `sudo apt install cfimport`
+
+## What This Tool Does
+
+cfimport automates the manual steps documented in AWS CloudFormation's resource import workflow:
+
+1. **Scan** - Discover existing AWS resources using IaC generator
+2. **Generate** - Create CloudFormation templates from scanned resources
+3. **Import** - Execute the import via change sets
+
+### AWS CloudFormation Import Process (Manual vs cfimport)
+
+| Manual Steps | cfimport Command |
+|--------------|------------------|
+| Navigate to IaC generator in console | `cfimport scan` |
+| Start resource scan | `cfimport scan --region us-east-1` |
+| Wait for scan, select resources | `cfimport generate --scan-id X` |
+| Download template | `cfimport generate -o template.yaml` |
+| Create change set with IMPORT type | `cfimport import --stack X` |
+| Map resource identifiers | `cfimport import --resources ids.json` |
+| Execute change set | Automatic (or `--dry-run`) |
 
 ## Repository Structure
 
@@ -19,15 +40,16 @@ cf-import/
 │       └── main.go           # Application entry point
 ├── internal/
 │   ├── cli/                  # CLI commands (cobra)
-│   │   ├── root.go           # Root command and global flags
-│   │   ├── dns.go            # DNS import command
-│   │   ├── firewall.go       # Firewall import command
-│   │   └── export.go         # Export command
-│   ├── cloudflare/           # Cloudflare API client (TODO)
+│   │   ├── root.go           # Root command, global flags (--region, --profile)
+│   │   ├── scan.go           # Resource scanning via IaC generator
+│   │   ├── generate.go       # Template generation from scans
+│   │   ├── import.go         # Stack import operations
+│   │   └── list.go           # List resources/types
+│   ├── aws/                  # AWS SDK wrappers (TODO)
 │   ├── config/               # Configuration handling (TODO)
-│   └── importer/             # Import logic (TODO)
+│   └── template/             # Template manipulation (TODO)
 ├── pkg/
-│   └── api/                  # Public API types (TODO)
+│   └── types/                # Public API types (TODO)
 ├── debian/                   # Debian packaging files
 │   ├── control               # Package metadata
 │   ├── rules                 # Build rules
@@ -60,161 +82,182 @@ make build
 ### Installing Locally
 
 ```bash
-# Install to /usr/local/bin (requires sudo)
-sudo make install
-
-# Uninstall
-sudo make uninstall
+sudo make install     # Install to /usr/local/bin
+sudo make uninstall   # Remove
 ```
 
 ### Building Debian Package
 
 ```bash
-# Build .deb package
-make deb
+make deb                          # Build .deb package
+sudo dpkg -i ../cfimport_*.deb    # Install
+```
 
-# Install the package
-sudo dpkg -i ../cfimport_*.deb
+## CLI Commands Reference
+
+### Global Flags
+
+```bash
+--region      AWS region (or AWS_REGION env)
+--profile     AWS profile (or AWS_PROFILE env)
+--config      Config file path
+--verbose     Verbose output
+```
+
+### Commands
+
+```bash
+# Scan for resources
+cfimport scan --region us-east-1
+cfimport scan --types AWS::EC2::Instance,AWS::S3::Bucket
+
+# Generate template from scan
+cfimport generate --scan-id abc123 --output template.yaml
+cfimport generate --resources i-123,bucket-name -o template.yaml
+
+# Import into stack
+cfimport import --stack mystack --template template.yaml --resources resources.json
+cfimport import --stack newstack --template template.yaml --resources resources.json --create
+cfimport import --stack mystack --template template.yaml --resources resources.json --dry-run
+
+# List resources
+cfimport list --types              # Show importable resource types
+cfimport list --scan-id abc123     # Show resources from scan
+cfimport list --stack mystack      # Show stack resources
 ```
 
 ## Development Workflow
 
 ### Adding a New Command
 
-1. Create a new file in `internal/cli/` (e.g., `pages.go`)
+1. Create a new file in `internal/cli/` (e.g., `validate.go`)
 2. Define the command using cobra:
    ```go
-   var pagesCmd = &cobra.Command{
-       Use:   "pages",
-       Short: "Import Cloudflare Pages settings",
-       RunE:  runPagesImport,
+   var validateCmd = &cobra.Command{
+       Use:   "validate",
+       Short: "Validate a template for import",
+       RunE:  runValidate,
    }
 
    func init() {
-       rootCmd.AddCommand(pagesCmd)
+       rootCmd.AddCommand(validateCmd)
        // Add flags...
    }
    ```
-3. Add tests in `internal/cli/pages_test.go`
+3. Add tests in `internal/cli/validate_test.go`
 4. Update man page in `man/cfimport.1`
-
-### Code Organization
-
-- **cmd/**: Entry points only - minimal code
-- **internal/**: Private packages - core implementation
-- **pkg/**: Public packages - APIs for external use
 
 ### Testing
 
 ```bash
-# Run all tests
-make test
-
-# Run tests with coverage
-make test-coverage
-
-# Run linter
-make lint
-```
-
-## Commit Conventions
-
-Follow conventional commits:
-- `feat:` - New features or commands
-- `fix:` - Bug fixes
-- `docs:` - Documentation changes
-- `refactor:` - Code refactoring
-- `test:` - Test additions
-- `build:` - Build system changes
-- `chore:` - Maintenance tasks
-
-Examples:
-```
-feat: add pages import command
-fix: handle empty zone response gracefully
-docs: update man page with new options
-build: update Go version to 1.22
+make test           # Run tests
+make test-coverage  # With coverage
+make lint           # Run linter
 ```
 
 ## Configuration
 
 ### Hierarchy (highest to lowest priority)
 
-1. Command-line flags (`--api-token`)
-2. Environment variables (`CF_API_TOKEN`)
-3. Config file (`~/.cfimport.yaml` or `/etc/cfimport/config.yaml`)
+1. Command-line flags (`--region us-east-1`)
+2. Environment variables (`AWS_REGION`)
+3. Config file (`~/.cfimport.yaml`)
+4. AWS config (`~/.aws/config`)
 
 ### Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `CF_API_TOKEN` | Cloudflare API token (preferred) |
-| `CF_API_KEY` | Cloudflare API key (legacy) |
-| `CF_API_EMAIL` | Account email for API key auth |
+| `AWS_REGION` | AWS region |
+| `AWS_PROFILE` | AWS profile name |
+| `AWS_ACCESS_KEY_ID` | Access key |
+| `AWS_SECRET_ACCESS_KEY` | Secret key |
 
 ### Config File Format
 
 ```yaml
-api_token: "your-api-token"
-default_zone: "example.com"
+region: us-east-1
+profile: default
 verbose: false
 ```
 
-**Never commit credentials to the repository.**
-
 ## Key Dependencies
 
+- [aws/aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2) - AWS SDK
 - [spf13/cobra](https://github.com/spf13/cobra) - CLI framework
-- [spf13/viper](https://github.com/spf13/viper) - Configuration management
+- [spf13/viper](https://github.com/spf13/viper) - Configuration
+
+## AWS CloudFormation Import Requirements
+
+When implementing features, remember these CloudFormation import rules:
+
+1. **DeletionPolicy: Retain** - All imported resources must have this
+2. **Resource identifiers** - Each resource type has specific identifier(s)
+3. **Same region** - Resources must be in the same region as the stack
+4. **Not managed** - Resources can't already be in another stack
+5. **Supported types** - Not all resource types support import
+
+### Resource Identifier Examples
+
+| Resource Type | Identifier Key |
+|---------------|----------------|
+| AWS::EC2::Instance | InstanceId |
+| AWS::S3::Bucket | BucketName |
+| AWS::RDS::DBInstance | DBInstanceIdentifier |
+| AWS::Lambda::Function | FunctionName |
+| AWS::DynamoDB::Table | TableName |
 
 ## Common Tasks for AI Assistants
 
 ### Before Making Changes
 
-1. Read existing code to understand patterns
+1. Read existing code in `internal/cli/` for patterns
 2. Run `make test` to ensure tests pass
-3. Check `go.mod` for dependency versions
+3. Check AWS SDK v2 documentation for API usage
 
 ### When Implementing Features
 
-1. Follow existing code patterns in `internal/cli/`
-2. Add appropriate flags and help text
-3. Implement dry-run mode where applicable
-4. Add error handling with clear messages
-5. Update man page documentation
-6. Write tests for new functionality
+1. Follow existing patterns in CLI commands
+2. Use AWS SDK v2 (not v1)
+3. Always implement `--dry-run` for destructive operations
+4. Add `--wait` flag for async operations
+5. Handle pagination for list operations
+6. Mask sensitive data in verbose output
 
-### Version Updates
+### AWS API Calls
 
-1. Update `debian/changelog` with new entry
-2. Tag release with `git tag v0.x.x`
-3. Build packages with `make deb`
+```go
+// Pattern for AWS SDK v2 calls
+cfg, err := config.LoadDefaultConfig(ctx,
+    config.WithRegion(region),
+)
+client := cloudformation.NewFromConfig(cfg)
 
-## Cloudflare API Guidelines
+// Example: Start resource scan
+output, err := client.StartResourceScan(ctx, &cloudformation.StartResourceScanInput{})
+```
 
-- Always use API tokens over API keys when possible
-- Implement rate limiting handling
-- Support pagination for list operations
-- Provide dry-run mode for destructive operations
-- Log API calls in verbose mode (without secrets)
+## Commit Conventions
+
+```
+feat: add validate command for template checking
+fix: handle pagination in resource listing
+docs: update man page with validate command
+build: upgrade AWS SDK to v1.25.0
+```
 
 ## Security Considerations
 
-- Never log or display API tokens/keys
-- Validate all user input before API calls
-- Use HTTPS for all API communication
-- Sanitize file paths to prevent directory traversal
-- Don't execute user-provided data as commands
-
-## Debian Package Notes
-
-- Binary installs to `/usr/bin/cfimport`
-- Man page installs to `/usr/share/man/man1/cfimport.1`
-- System config goes to `/etc/cfimport/`
-- User config goes to `~/.cfimport.yaml`
+- Never log AWS credentials
+- Use IAM roles when possible
+- Validate all user input
+- Implement proper error messages (no stack traces to users)
+- Support MFA and assume role workflows
 
 ## Resources
 
-- Cloudflare API: https://developers.cloudflare.com/api/
-- Cobra CLI: https://cobra.dev/
-- Debian Packaging: https://www.debian.org/doc/manuals/maint-guide/
+- [AWS CloudFormation Import](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resource-import.html)
+- [IaC Generator](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/generate-IaC.html)
+- [Supported Resources for Import](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resource-import-supported-resources.html)
+- [AWS SDK Go v2](https://aws.github.io/aws-sdk-go-v2/docs/)
+- [Cobra CLI](https://cobra.dev/)

@@ -11,21 +11,25 @@ import (
 var (
 	cfgFile string
 	verbose bool
+	region  string
+	profile string
 )
 
 // rootCmd represents the base command
 var rootCmd = &cobra.Command{
 	Use:   "cfimport",
-	Short: "Cloudflare Import Tool",
-	Long: `cfimport is a CLI tool for importing Cloudflare configurations and resources.
+	Short: "AWS CloudFormation Import Tool",
+	Long: `cfimport automates the process of importing existing AWS resources
+into CloudFormation stacks.
 
-It allows you to import DNS records, firewall rules, page rules,
-and other Cloudflare configurations from various sources.
+It simplifies the manual steps required for CloudFormation resource imports,
+including template generation, resource scanning, and stack operations.
 
 Examples:
-  cfimport dns --zone example.com --file dns-records.json
-  cfimport firewall --zone example.com --file rules.yaml
-  cfimport export --zone example.com --output backup/`,
+  cfimport scan --region us-east-1
+  cfimport generate --resources ec2,s3 --output template.yaml
+  cfimport import --stack mystack --template template.yaml --resources resources.json
+  cfimport iac-generator --scan --region us-east-1`,
 }
 
 // Execute runs the root command
@@ -39,13 +43,11 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cfimport.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
-	rootCmd.PersistentFlags().String("api-token", "", "Cloudflare API token")
-	rootCmd.PersistentFlags().String("api-key", "", "Cloudflare API key (legacy)")
-	rootCmd.PersistentFlags().String("api-email", "", "Cloudflare account email")
+	rootCmd.PersistentFlags().StringVar(&region, "region", "", "AWS region (overrides AWS_REGION)")
+	rootCmd.PersistentFlags().StringVar(&profile, "profile", "", "AWS profile to use")
 
-	viper.BindPFlag("api_token", rootCmd.PersistentFlags().Lookup("api-token"))
-	viper.BindPFlag("api_key", rootCmd.PersistentFlags().Lookup("api-key"))
-	viper.BindPFlag("api_email", rootCmd.PersistentFlags().Lookup("api-email"))
+	viper.BindPFlag("region", rootCmd.PersistentFlags().Lookup("region"))
+	viper.BindPFlag("profile", rootCmd.PersistentFlags().Lookup("profile"))
 }
 
 func initConfig() {
@@ -61,7 +63,7 @@ func initConfig() {
 		viper.SetConfigName("config")
 	}
 
-	viper.SetEnvPrefix("CF")
+	viper.SetEnvPrefix("AWS")
 	viper.AutomaticEnv()
 
 	viper.ReadInConfig()

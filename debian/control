@@ -12,14 +12,13 @@ Rules-Requires-Root: no
 Package: cfimport
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Cloudflare Import Tool
- cfimport is a command-line tool for importing and exporting
- Cloudflare configurations and resources.
+Description: AWS CloudFormation Import Tool
+ cfimport automates the process of importing existing AWS resources
+ into CloudFormation stacks.
  .
  Features:
-  - Import/export DNS records
-  - Import/export firewall rules
-  - Import/export page rules
-  - Support for multiple file formats (JSON, YAML, BIND, CSV)
+  - Scan AWS accounts for existing resources
+  - Generate CloudFormation templates using IaC generator
+  - Import resources into new or existing stacks
   - Dry-run mode for previewing changes
-  - Backup and restore configurations
+  - Support for all CloudFormation-importable resource types

@@ -1,23 +1,30 @@
 .TH CFIMPORT 1 "January 2026" "cfimport 0.1.0" "User Commands"
 .SH NAME
-cfimport \- Cloudflare Import Tool
+cfimport \- AWS CloudFormation Import Tool
 .SH SYNOPSIS
 .B cfimport
 [\fIOPTIONS\fR] \fICOMMAND\fR [\fIARGS\fR]
 .SH DESCRIPTION
 .B cfimport
-is a command-line tool for importing and exporting Cloudflare configurations and resources.
-It allows you to manage DNS records, firewall rules, and other Cloudflare settings from local files.
+automates the process of importing existing AWS resources into CloudFormation stacks.
+It simplifies the manual steps required for CloudFormation resource imports,
+including template generation, resource scanning, and stack operations.
 .SH COMMANDS
 .TP
-.B dns
-Import DNS records into a Cloudflare zone from various file formats (JSON, YAML, BIND, CSV).
+.B scan
+Scan AWS account for existing resources using the IaC generator.
+Scans are region-wide and expire after 30 days.
 .TP
-.B firewall
-Import firewall rules, WAF rules, rate limiting rules, or IP access rules.
+.B generate
+Generate CloudFormation template from scanned resources.
+Creates templates with DeletionPolicy: Retain for import.
 .TP
-.B export
-Export Cloudflare configurations and resources to local files for backup or migration.
+.B import
+Import resources into a new or existing CloudFormation stack.
+Automates change set creation and execution.
+.TP
+.B list
+List supported resource types or resources from scans/stacks.
 .SH GLOBAL OPTIONS
 .TP
 .BR \-\-config " " \fIFILE\fR
@@ -26,70 +33,131 @@ Path to configuration file (default: $HOME/.cfimport.yaml)
 .BR \-v ", " \-\-verbose
 Enable verbose output
 .TP
-.BR \-\-api\-token " " \fITOKEN\fR
-Cloudflare API token (preferred authentication method)
+.BR \-\-region " " \fIREGION\fR
+AWS region (overrides AWS_REGION environment variable)
 .TP
-.BR \-\-api\-key " " \fIKEY\fR
-Cloudflare API key (legacy authentication)
-.TP
-.BR \-\-api\-email " " \fIEMAIL\fR
-Cloudflare account email (required with --api-key)
+.BR \-\-profile " " \fIPROFILE\fR
+AWS profile to use from credentials file
 .TP
 .BR \-\-version
 Show version information
 .TP
 .BR \-h ", " \-\-help
 Show help message
-.SH DNS COMMAND OPTIONS
+.SH SCAN COMMAND
+.B cfimport scan
+[\fIOPTIONS\fR]
+.PP
+Initiate a resource scan to discover existing AWS resources.
 .TP
-.BR \-z ", " \-\-zone " " \fIZONE\fR
-Cloudflare zone name or ID (required)
+.BR \-o ", " \-\-output " " \fIFILE\fR
+Output file for scan results (JSON)
 .TP
-.BR \-f ", " \-\-file " " \fIFILE\fR
-Input file path (required)
+.BR \-\-types " " \fITYPES\fR
+Comma-separated resource types to scan for
+.TP
+.BR \-\-wait
+Wait for scan to complete (default: true)
+.SH GENERATE COMMAND
+.B cfimport generate
+[\fIOPTIONS\fR]
+.PP
+Generate a CloudFormation template from scanned resources.
+.TP
+.BR \-\-scan\-id " " \fIID\fR
+Scan ID from a previous scan
+.TP
+.BR \-r ", " \-\-resources " " \fIIDS\fR
+Specific resource IDs to include
+.TP
+.BR \-\-types " " \fITYPES\fR
+Resource types to include
+.TP
+.BR \-o ", " \-\-output " " \fIFILE\fR
+Output template file (default: template.yaml)
 .TP
 .BR \-\-format " " \fIFORMAT\fR
-Input file format: json, yaml, bind, csv (default: json)
+Output format: yaml or json (default: yaml)
+.SH IMPORT COMMAND
+.B cfimport import
+[\fIOPTIONS\fR]
+.PP
+Import resources into a CloudFormation stack.
+.TP
+.BR \-s ", " \-\-stack " " \fINAME\fR
+Stack name (required)
+.TP
+.BR \-t ", " \-\-template " " \fIFILE\fR
+CloudFormation template file (required)
+.TP
+.BR \-r ", " \-\-resources " " \fIFILE\fR
+Resources to import JSON file (required)
+.TP
+.BR \-\-create
+Create a new stack instead of updating existing
 .TP
 .BR \-\-dry\-run
-Preview changes without applying them
+Validate and create change set without executing
 .TP
-.BR \-\-replace
-Replace existing records instead of merging
+.BR \-\-wait
+Wait for import to complete (default: true)
 .SH EXAMPLES
-Import DNS records from a JSON file:
+Scan for resources in a region:
 .PP
 .RS
-cfimport dns --zone example.com --file dns-records.json
+cfimport scan --region us-east-1
 .RE
 .PP
-Import DNS records with dry-run:
+Generate template from scan:
 .PP
 .RS
-cfimport dns --zone example.com --file records.json --dry-run
+cfimport generate --scan-id abc123 --output template.yaml
 .RE
 .PP
-Export all zone configurations:
+Import resources into existing stack:
 .PP
 .RS
-cfimport export --zone example.com --output ./backup/
+cfimport import --stack mystack --template template.yaml --resources resources.json
 .RE
 .PP
-Import firewall rules:
+Create new stack with imported resources:
 .PP
 .RS
-cfimport firewall --zone example.com --file rules.yaml
+cfimport import --stack newstack --template template.yaml --resources resources.json --create
+.RE
+.PP
+Dry-run import to preview changes:
+.PP
+.RS
+cfimport import --stack mystack --template template.yaml --resources resources.json --dry-run
+.RE
+.SH RESOURCES FILE FORMAT
+The resources file for import should be JSON array:
+.PP
+.RS
+[
+  {
+    "ResourceType": "AWS::EC2::Instance",
+    "LogicalResourceId": "MyInstance",
+    "ResourceIdentifier": {
+      "InstanceId": "i-1234567890abcdef0"
+    }
+  }
+]
 .RE
 .SH ENVIRONMENT
 .TP
-.B CF_API_TOKEN
-Cloudflare API token (preferred)
+.B AWS_REGION
+Default AWS region
 .TP
-.B CF_API_KEY
-Cloudflare API key (legacy)
+.B AWS_PROFILE
+Default AWS profile
 .TP
-.B CF_API_EMAIL
-Cloudflare account email
+.B AWS_ACCESS_KEY_ID
+AWS access key ID
+.TP
+.B AWS_SECRET_ACCESS_KEY
+AWS secret access key
 .SH FILES
 .TP
 .I $HOME/.cfimport.yaml
@@ -97,6 +165,12 @@ User configuration file
 .TP
 .I /etc/cfimport/config.yaml
 System-wide configuration file
+.TP
+.I $HOME/.aws/credentials
+AWS credentials file
+.TP
+.I $HOME/.aws/config
+AWS configuration file
 .SH EXIT STATUS
 .TP
 .B 0
@@ -109,7 +183,13 @@ Sid Patel
 .SH BUGS
 Report bugs at: https://github.com/resolve109/cf-import/issues
 .SH SEE ALSO
-.BR curl (1),
-.BR jq (1)
+.BR aws (1),
+.BR aws-cloudformation (1)
 .PP
-Cloudflare API documentation: https://developers.cloudflare.com/api/
+AWS CloudFormation documentation:
+.br
+https://docs.aws.amazon.com/cloudformation/
+.PP
+Resource import documentation:
+.br
+https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resource-import.html
